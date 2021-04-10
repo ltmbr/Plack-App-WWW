@@ -13,9 +13,11 @@ sub call {
     my $env  = shift;
 
     # check if path info is a folder, if true add directory index
-    return Plack::App::Directory->new(
-        root => $self->root
-    )->to_app->($env) if -d $self->root . $env->{PATH_INFO};
+    if (-d $self->root . $env->{PATH_INFO}) {
+        return Plack::App::Directory->new(
+            root => $self->root
+        )->to_app->($env);
+    }
 
     my ($file, $path_info) = $self->locate_file($env);
     return $file if ref $file eq 'ARRAY';
@@ -45,6 +47,19 @@ sub serve_path {
     } else {
         Plack::App::File->new(file => $file)->to_app->($env);
     }
+}
+
+sub _find_index {
+    my ($self, $path_info) = @_;
+
+    $path_info =~ s/\/$//;
+
+    return $path_info . '/index.pl'   if -e $self->root . $path_info . '/index.pl';
+    return $path_info . '/index.cgi'  if -e $self->root . $path_info . '/index.cgi';
+    return $path_info . '/index.html' if -e $self->root . $path_info . '/index.html';
+    return $path_info . '/index.htm'  if -e $self->root . $path_info . '/index.htm';
+
+    return $path_info;
 }
 
 sub _valid_file_perl {
