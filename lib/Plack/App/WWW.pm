@@ -6,20 +6,36 @@ use Plack::App::File;
 use Plack::App::WrapCGI;
 use Plack::App::Directory;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 sub call {
     my $self = shift;
     my $env  = shift;
 
-    # check if path info is a folder, if true add directory index
+    my $temp;
+
+    # check if pathinfo is a folder
     if (-d $self->root . $env->{PATH_INFO}) {
+        # find index
+        my $index = $self->_find_index($env->{PATH_INFO});
+
+        # if index is false add directory index
         return Plack::App::Directory->new(
             root => $self->root
-        )->to_app->($env);
+        )->to_app->($env) unless $index;
+
+        # set temp
+        $temp = $env->{PATH_INFO};
+
+        # set index in pathinfo
+        $env->{PATH_INFO} = $index;
     }
 
     my ($file, $path_info) = $self->locate_file($env);
+
+    # back pathinfo original
+    $env->{PATH_INFO} = $temp if $temp;
+
     return $file if ref $file eq 'ARRAY';
 
     if ($path_info) {
@@ -59,7 +75,7 @@ sub _find_index {
     return $path_info . '/index.html' if -e $self->root . $path_info . '/index.html';
     return $path_info . '/index.htm'  if -e $self->root . $path_info . '/index.htm';
 
-    return $path_info;
+    return;
 }
 
 sub _valid_file_perl {
@@ -97,7 +113,9 @@ Plack::App::WWW - Serve cgi-bin and static files from root directory
 =head1 DESCRIPTION
 
 Plack::App::WWW allows you to load CGI scripts and static files. This module use L<Plack::App::CGIBin> as a base,
-L<Plack::App::WrapCGI> to load CGI scripts and L<Plack::App::File> to load static files and L<Plack::App::Directory> to directory index.
+L<Plack::App::WrapCGI> to load CGI scripts and L<Plack::App::File> to load static files and L<Plack::App::Directory>
+to directory index when not have index file: index.pl, index.cgi, index.html and index.htm.
+
 
 =head1 CONFIGURATION
 
